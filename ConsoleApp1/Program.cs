@@ -38,6 +38,8 @@ class Program
 
         Console.WriteLine("Бот запущен и ожидает сообщений...");
         Console.ReadLine();
+
+        await Task.Delay(-1);
     }
 
     private static async Task HandleError(ITelegramBotClient client, Exception exception, HandleErrorSource source, CancellationToken token)
