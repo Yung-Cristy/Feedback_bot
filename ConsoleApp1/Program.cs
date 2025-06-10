@@ -1,15 +1,16 @@
-﻿using Telegram.Bot;
+﻿using ConsoleApp1.Database;
+using ConsoleApp1.Keys;
+using ConsoleApp1.Page;
+using ConsoleApp1.Pages;
+using ConsoleApp1.Services;
+using ConsoleApp1.Update;
+using ConsoleApp1.User;
+using Feedback.User;
+using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using ConsoleApp1.Pages;
-using ConsoleApp1.User;
-using ConsoleApp1.Keys;
-using ConsoleApp1.Update;
-using ConsoleApp1.Services;
-using ConsoleApp1.Database;
-using ConsoleApp1.Page;
-using Feedback.User;
 
 class Program
 {
@@ -28,7 +29,7 @@ class Program
 
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = Array.Empty<UpdateType>() 
+            AllowedUpdates = new[] { UpdateType.Message, UpdateType.CallbackQuery }
         };
 
         telegramClient.StartReceiving(
@@ -37,47 +38,69 @@ class Program
             receiverOptions: receiverOptions);
 
         Console.WriteLine("Бот запущен и ожидает сообщений...");
-        Console.ReadLine();
-
         await Task.Delay(-1);
     }
 
     private static async Task HandleError(ITelegramBotClient client, Exception exception, HandleErrorSource source, CancellationToken token)
     {
-        Console.WriteLine($"Ошибка: {exception.Message}");
+        Console.WriteLine($"Ошибка: {exception.GetType()}: {exception.Message}");
+        if (exception is ApiRequestException apiEx)
+        {
+            Console.WriteLine($"Код ошибки Telegram: {apiEx.ErrorCode}");
+        }
     }
 
     private static async Task HandleUpdate(ITelegramBotClient client, Update update, CancellationToken token)
     {
-        var updateInfo = new UpdateInfo(update);
-        var userData = _userDataManager.GetOrCreateUserData(updateInfo);
-
-        switch (update.Type)
+        try
         {
-            case UpdateType.Message:
-                if (update.Message.Document != null && userData.Role == UserRole.Admin)
-                    await HandleFile(client, updateInfo);
-                else
-                    await HandleMessage(client, updateInfo);
-                break;
-            case UpdateType.CallbackQuery:
-                await HandleCallbackQuery(client, updateInfo);
-                break;
+            var updateInfo = new UpdateInfo(update);
+            var userData = _userDataManager.GetOrCreateUserData(updateInfo);
+
+            switch (update.Type)
+            {
+                case UpdateType.Message:
+                    if (update.Message?.Document != null && userData.Role == UserRole.Admin)
+                        await HandleFile(client, updateInfo);
+                    else if (update.Message?.Text != null)
+                        await HandleMessage(client, updateInfo);
+                    break;
+                case UpdateType.CallbackQuery:
+                    await HandleCallbackQuery(client, updateInfo);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка обработки апдейта: {ex}");
         }
     }
 
     private static async Task HandleCallbackQuery(ITelegramBotClient client, UpdateInfo updateInfo)
     {
-        switch (updateInfo.Text)
+        try
         {
-            case "Выдать ключ":
-                await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
-                break;
+            await client.AnswerCallbackQuery(updateInfo.Update.CallbackQuery.Id);
 
-            case "Вернуться в главное меню":
-                await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
-                break;
-           
+            switch (updateInfo.Text)
+            {
+                case "Выдать ключ":
+                    await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
+                    break;
+                case "Загрузить ключи":
+                    await _userStateManager.UpdatePageAsync(updateInfo, new LoadKeysPage());
+                    break;
+                case "Вернуться в главное меню":
+                    await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
+                    break;
+                default:
+                    Console.WriteLine($"Неизвестный callback: {updateInfo.Text}");
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка обработки callback: {ex}");
         }
     }
 
@@ -124,18 +147,6 @@ class Program
         catch (Exception ex)
         {
             await client.SendMessage(updateInfo.ChatId, $"Ошибка: {ex.Message}");
-        }
-    }
-
-    private static async Task DeleteUserMessage(ITelegramBotClient client, long chatId, int messageId)
-    {
-        try
-        {
-            await client.DeleteMessage(chatId, messageId);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка при удалении сообщения: {ex.Message}");
         }
     }
 }
