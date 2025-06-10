@@ -94,7 +94,7 @@ class Program
                     await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
                     break;
                 case "SendKey":
-                    await _userStateManager.UpdatePageAsync(updateInfo, new LoadKeysPage());
+                    await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
                     break;
                 default:
                     Console.WriteLine($"Неизвестный callback: {updateInfo.Text}");
