@@ -93,6 +93,9 @@ class Program
                 case "Вернуться в главное меню":
                     await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
                     break;
+                case "SendKey":
+                    await _userStateManager.UpdatePageAsync(updateInfo, new LoadKeysPage());
+                    break;
                 default:
                     Console.WriteLine($"Неизвестный callback: {updateInfo.Text}");
                     break;
