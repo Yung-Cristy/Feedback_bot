@@ -18,7 +18,6 @@ namespace ConsoleApp1.Keys
         {
             _client = client;
             _repository = new KeyRepository();
-            GetKeysFromFile();
         }
 
         public async Task<string?> GetAvailableKey(UpdateInfo updateInfo)
