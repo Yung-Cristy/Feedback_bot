@@ -2,26 +2,41 @@
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Feedback.User;
 using ConsoleApp1.Pages;
 using ConsoleApp1.User;
 using ConsoleApp1.Keys;
+using ConsoleApp1.Update;
+using ConsoleApp1.Services;
+using ConsoleApp1.Database;
+using ConsoleApp1.Page;
+using Feedback.User;
 
 class Program
 {
     private static UserStateManager _userStateManager;
     private static UserDataManager _userDataManager;
     private static KeyManager _keyManager;
+    private static KeysFileImporter _keysImporter;
 
     static async Task Main(string[] args)
     {
-        var telegramClient = new TelegramBotClient(token: "7567444597:AAGTAeZ3tvitYv_CHqf0ZYhMy8fvh1TcIz8");
-        _userStateManager = new UserStateManager(telegramClient);
+        var telegramClient = new TelegramBotClient(token: "8033400730:AAEnqbeUmWZoHZEa7ed-RZjwQAcEHAF-kVo");
         _userDataManager = new UserDataManager();
-        _keyManager = new KeyManager(telegramClient);
+        _userStateManager = new UserStateManager(telegramClient, _userDataManager);
+        _keyManager = new KeyManager(telegramClient, _userDataManager);
+        _keysImporter = new KeysFileImporter(_keyManager);
 
-        telegramClient.StartReceiving(updateHandler: HandleUpdate, errorHandler: HandleError);
+        var receiverOptions = new ReceiverOptions
+        {
+            AllowedUpdates = Array.Empty<UpdateType>() 
+        };
 
+        telegramClient.StartReceiving(
+            updateHandler: HandleUpdate,
+            errorHandler: HandleError,
+            receiverOptions: receiverOptions);
+
+        Console.WriteLine("Бот запущен и ожидает сообщений...");
         Console.ReadLine();
     }
 
@@ -32,49 +47,81 @@ class Program
 
     private static async Task HandleUpdate(ITelegramBotClient client, Update update, CancellationToken token)
     {
+        var updateInfo = new UpdateInfo(update);
+        var userData = _userDataManager.GetOrCreateUserData(updateInfo);
+
         switch (update.Type)
         {
             case UpdateType.Message:
-                await HandleMessage(client, update);
+                if (update.Message.Document != null && userData.Role == UserRole.Admin)
+                    await HandleFile(client, updateInfo);
+                else
+                    await HandleMessage(client, updateInfo);
                 break;
             case UpdateType.CallbackQuery:
-                await HandleCallbackQuery(client, update);
+                await HandleCallbackQuery(client, updateInfo);
                 break;
         }
     }
 
-    private static async Task HandleCallbackQuery(ITelegramBotClient client, Update update)
+    private static async Task HandleCallbackQuery(ITelegramBotClient client, UpdateInfo updateInfo)
     {
-        var inputCallback = update.CallbackQuery.Data;
-        var messageId = update.CallbackQuery.Message.Id;
-        var chatId = update.CallbackQuery.Message.Chat.Id;
-        var userId = update.CallbackQuery.From.Id;
-
-        var userData = _userDataManager.GetOrCreateUserData(userId);
-
-        switch (inputCallback) {
+        switch (updateInfo.Text)
+        {
             case "Выдать ключ":
+                await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
+                break;
 
-                
+            case "Вернуться в главное меню":
+                await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
+                break;
+           
+        }
     }
 
-    private static async Task HandleMessage(ITelegramBotClient client, Update update)
+    private static async Task HandleFile(ITelegramBotClient client, UpdateInfo updateInfo)
     {
-        var chatId = update.Message.Chat.Id;
-        var messageId = update.Message.MessageId;
-        var text = update.Message.Text;
-        var userId = update.Message.From.Id;
-
-        var userData = _userDataManager.GetOrCreateUserData(userId);
-
-        if (text == "/start")
+        if (_userStateManager.GetCurrentPage(updateInfo.UserId) is LoadKeysPage)
         {
-            await _userStateManager.ShowPageAsync(
-                userId: userId,
-                page: new MainMenu(),
-                userData: userData);
+            await ProcessKeyFileUpload(client, updateInfo);
+        }
+    }
 
-            await DeleteUserMessage(client, chatId, messageId);
+    private static async Task HandleMessage(ITelegramBotClient client, UpdateInfo updateInfo)
+    {
+        switch (updateInfo.Text)
+        {
+            case "/start":
+                await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
+                break;
+            case "/send_key":
+                await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
+                break;
+        }
+    }
+
+    private static async Task ProcessKeyFileUpload(ITelegramBotClient client, UpdateInfo updateInfo)
+    {
+        try
+        {
+            var document = updateInfo.Update.Message.Document;
+
+            if (!document.FileName.EndsWith(".xlsx"))
+            {
+                await client.SendMessage(updateInfo.ChatId, "Требуется файл .xlsx");
+                return;
+            }
+
+            var result = await _keysImporter.ImportKeysFile(client, document, updateInfo.ChatId);
+
+            if (result.IsSuccess)
+            {
+                await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
+            }
+        }
+        catch (Exception ex)
+        {
+            await client.SendMessage(updateInfo.ChatId, $"Ошибка: {ex.Message}");
         }
     }
 
@@ -82,9 +129,7 @@ class Program
     {
         try
         {
-            await client.DeleteMessage(
-                chatId: chatId,
-                messageId: messageId);
+            await client.DeleteMessage(chatId, messageId);
         }
         catch (Exception ex)
         {

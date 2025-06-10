@@ -1,46 +1,82 @@
 ﻿using System.Collections.Concurrent;
 using System.Linq;
+using ConsoleApp1.Database;
+using ConsoleApp1.Services;
+using ConsoleApp1.Update;
+using ConsoleApp1.User;
+using Microsoft.Data.Sqlite;
 using Telegram.Bot;
-
 
 namespace ConsoleApp1.Keys
 {
-    public class KeyManager
+    public class KeyManager 
     {
-        private ConcurrentDictionary<string, Key> _keys;
         private readonly ITelegramBotClient _client;
+        private readonly KeyRepository _repository;
 
-        private readonly object _lock = new object();
-        public KeyManager(ITelegramBotClient client)
+        public KeyManager(ITelegramBotClient client, UserDataManager userDataManager)
         {
             _client = client;
-            _keys = new ConcurrentDictionary<string, Key>();       
-            ParseKeysFromFile();
+            _repository = new KeyRepository();
+            GetKeysFromFile();
         }
 
-        public async Task GetAvailableKey()
+        public async Task<string?> GetAvailableKey(UpdateInfo updateInfo)
         {
-            Key availableKey;
+            var availableKey = _repository.GetAndDeactivateKey(updateInfo);
 
-            lock (_lock)
+            return availableKey?.Link;
+
+        }
+
+        public void GetKeysFromFile()
+        {
+            var parser = new KeyParser();
+            var parsedKeys = parser.Keys;
+
+            if (parsedKeys == null || !parsedKeys.Any())
             {
-                 availableKey = _keys.FirstOrDefault(x => x.Value.IsActive).Value;
+                Console.WriteLine("Предупреждение: Не удалось загрузить ключи или файл пуст.");
+                return;
+            }
 
-                if (availableKey is null) 
+            foreach (var key in parsedKeys)
+            {
+                _repository.Add(key);
+            }
+        }
+
+        public ImportResult AddKeysFromFile(List<Key> keys)
+        {
+            int addedCount = 0;
+            int duplicatesCount = 0;
+
+            using (var transaction = _repository.BeginTransaction())
+            {
+                try
                 {
-                       _client.SendMessage
+                    foreach (var key in keys)
+                    {
+                        if (!_repository.KeyExists(key.Id))
+                        {
+                            _repository.Add(key);
+                            addedCount++;
+                        }
+                        else
+                        {
+                            duplicatesCount++;
+                        }
+                    }
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
                 }
             }
 
-            
-        }
-
-        public void ParseKeysFromFile()
-        {
-            var parser = new KeyParser();
-            var parsedKeys = parser.keys;
-
-            parsedKeys.ForEach(key => _keys.TryAdd(key.Id, key));
+            return new ImportResult(true, addedCount, duplicatesCount);
         }
     }
 }

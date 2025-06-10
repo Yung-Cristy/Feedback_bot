@@ -1,26 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ConsoleApp1.Keys;
+﻿using ConsoleApp1.Keys;
+using ConsoleApp1.Update;
 using ConsoleApp1.User;
 using Feedback.Pages;
-using SixLabors.ImageSharp.PixelFormats;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ConsoleApp1.Pages
 {
-    public class SendKeyPage : Page
+    public class SendKeyPage : Feedback.Pages.Page
     {
-        public override string Text => string.Empty;
-        
+        public override string Text { get; }
 
-        public SendKeyPage(KeyManager keyManager)
+        private readonly KeyManager _keyManager;
+        private readonly UpdateInfo _updateInfo;
+        private readonly string _link;
+
+        public SendKeyPage(KeyManager keyManager, UpdateInfo updateInfo)
         {
-            AvailableKeys = new List<Key>();
-
-            keyManager.
+            _keyManager = keyManager;
+            _updateInfo = updateInfo;
+            _link = InitializeMessageAsync().GetAwaiter().GetResult(); // Осторожно с этим в продакшене!
+            Text = _link;
         }
 
         public override InlineKeyboardMarkup GetKeyboard(UserRole userRole)
@@ -28,13 +27,21 @@ namespace ConsoleApp1.Pages
             return new InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton.WithCallbackData("Вернуться в главное меню")                         
+                    InlineKeyboardButton.WithCallbackData("Вернуться в главное меню")
                 ]
             ]);
         }
 
-        
+        private async Task<string> InitializeMessageAsync()
+        {
+            var key = await _keyManager.GetAvailableKey(_updateInfo);
 
+            if (string.IsNullOrEmpty(key))
+            {
+                return "Свободных ключей нет. Просьба обратиться в службу технической поддержки";
+            }
 
+            return $"Ваша ссылка на прохождение отчета - {key}";
+        }
     }
 }

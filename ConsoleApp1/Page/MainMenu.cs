@@ -4,12 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ConsoleApp1.User;
-using Feedback.Pages;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace ConsoleApp1.Pages
 {
-    public class MainMenu : Page
+    public class MainMenu : Feedback.Pages.Page
     {
         public override string Text => "Привет! Данный бот предназначен для выдачи персональных ссылок для прохождения опросников." +
                                         "При нажатии на кнопку \"Выдать ключ\" бот направит вам ссылку на опрос. Данная ссылка будет действительна" +
@@ -22,11 +21,12 @@ namespace ConsoleApp1.Pages
                 return new InlineKeyboardMarkup(
                     [
                         [
-                            InlineKeyboardButton.WithCallbackData("Выдать ключ"),
+                            InlineKeyboardButton.WithCallbackData("Выдать ключ","SendKey"),
                             InlineKeyboardButton.WithCallbackData("Загрузить ключи")
                         ]
                     ]);
             }
+
             return new InlineKeyboardMarkup(
                     [
                         [

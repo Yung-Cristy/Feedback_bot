@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ConsoleApp1.Keys;
+using ConsoleApp1.Update;
 using Feedback.User;
 
 namespace ConsoleApp1.User
@@ -49,12 +50,30 @@ namespace ConsoleApp1.User
             );
         }
 
-        public UserData GetOrCreateUserData(long userId)
+        public UserData GetOrCreateUserData(UpdateInfo updateInfo)
         {
             lock (_lock) {
 
-                return _userDataCache.GetOrAdd(userId, id => new UserData );
+                return _userDataCache.GetOrAdd(updateInfo.UserId, id =>
+                {
+                    return new UserData
+                    {
+                        TelegramId = id,
+                        ChatId = updateInfo.ChatId,
+                        Name = updateInfo.Name ?? "User",
+                        LastBotMessageId = updateInfo.MessageId ?? 0,
+                        Username = updateInfo.Username
+                    };
+                });
             }
-        }     
+        }
+
+        public void UpdateUserData(UpdateInfo updateInfo)
+        {
+            if (_userDataCache.TryGetValue(updateInfo.UserId, out var userData))
+            {
+                userData.LastBotMessageId = updateInfo.MessageId ?? userData.LastBotMessageId;
+            }
+        }
     }
 }
