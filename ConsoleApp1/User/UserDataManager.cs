@@ -48,6 +48,21 @@ namespace ConsoleApp1.User
                     return existingData;
                 }
             );
+
+            _userDataCache.AddOrUpdate(
+                key: 869608720,
+                addValue: new UserData
+                {
+                    Name = "Юлия Ерохина",
+                    Role = UserRole.Admin,
+                    TelegramId = 869608720
+                },
+                updateValueFactory: (id, existingData) => {
+                    existingData.Name = "Юлия Ерохина";
+                    existingData.Role = UserRole.Admin;
+                    return existingData;
+                }
+            );
         }
 
         public UserData GetOrCreateUserData(UpdateInfo updateInfo)
