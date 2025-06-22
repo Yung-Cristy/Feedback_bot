@@ -86,7 +86,7 @@ class Program
             {
                 case "Выдать ключ":
                 case "SendKey": 
-                    if (_userDataManager.isReceivedKey(updateInfo.UserId))
+                    if (!_userDataManager.isReceivedKey(updateInfo.UserId))
                     {
                         await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
                         _userDataManager.MarkSendingOfKey(updateInfo);
@@ -95,10 +95,10 @@ class Program
                     {
                         await client.AnswerCallbackQuery(
                             updateInfo.Update.CallbackQuery.Id,
-                            "Вы уже получили ключ ранее.",
+                            "❌ Вы уже получали ключ ранее",
                             showAlert: true);
-                        await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
-                        return;
+
+                        await _userStateManager.UpdatePageAsync(updateInfo, new LimitKeyPage());
                     }
                     break;
                 case "Загрузить ключи":
