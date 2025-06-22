@@ -29,12 +29,11 @@ namespace ConsoleApp1.Database
                     value TEXT PRIMARY KEY,
                     link TEXT NOT NULL,
                     isActive INTEGER NOT NULL,
-                    assigned_to TEXT
+                    assigned_to TEXT,
+                    assignment_date TEXT
                 )";
             command.ExecuteNonQuery();
         }
-
-
 
         public void Add(Key key)
         {
@@ -104,15 +103,19 @@ namespace ConsoleApp1.Database
         private void DeactivateKey(string keyId, SqliteTransaction transaction, UpdateInfo update)
         {         
             var command = _connection.CreateCommand();
+            var deactivationTime = GetDeactivationTime();
             command.Transaction = transaction;
             command.CommandText = @"
                 UPDATE Keys 
                 SET isActive = 0,
-                    assigned_to = @assigned_to
+                    assigned_to = @assigned_to,
+                    assignment_date = @assignment_date
+                    
                 WHERE value = @value";
 
             command.Parameters.AddWithValue("@value", keyId);
             command.Parameters.AddWithValue("@assigned_to", $"{update.Name} {update.Username}");
+            command.Parameters.AddWithValue("@assignment_date", deactivationTime);
             command.ExecuteNonQuery();
         }
 
@@ -133,6 +136,14 @@ namespace ConsoleApp1.Database
         public SqliteTransaction BeginTransaction()
         {
             return _connection.BeginTransaction();
+        }
+
+        private string GetDeactivationTime()
+        {
+            DateTime utcNow = DateTime.UtcNow;
+            TimeSpan offset = TimeSpan.FromHours(5);
+            DateTime ekaterinburgTime = utcNow + offset;
+            return ekaterinburgTime.ToString("yyyy-MM-dd HH:mm:ss");
         }
     }
 }

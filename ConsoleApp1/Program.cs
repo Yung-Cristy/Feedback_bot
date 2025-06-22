@@ -85,16 +85,27 @@ class Program
             switch (updateInfo.Text)
             {
                 case "Выдать ключ":
-                    await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
+                case "SendKey": 
+                    if (_userDataManager.isReceivedKey(updateInfo.UserId))
+                    {
+                        await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
+                        _userDataManager.MarkSendingOfKey(updateInfo);
+                    }
+                    else
+                    {
+                        await client.AnswerCallbackQuery(
+                            updateInfo.Update.CallbackQuery.Id,
+                            "Вы уже получили ключ ранее.",
+                            showAlert: true);
+                        await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
+                        return;
+                    }
                     break;
                 case "Загрузить ключи":
                     await _userStateManager.UpdatePageAsync(updateInfo, new LoadKeysPage());
                     break;
                 case "Вернуться в главное меню":
                     await _userStateManager.ShowPageAsync(updateInfo, new MainMenu());
-                    break;
-                case "SendKey":
-                    await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
                     break;
                 default:
                     Console.WriteLine($"Неизвестный callback: {updateInfo.Text}");

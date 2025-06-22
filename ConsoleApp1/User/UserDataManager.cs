@@ -90,5 +90,37 @@ namespace ConsoleApp1.User
                 userData.LastBotMessageId = updateInfo.MessageId ?? userData.LastBotMessageId;
             }
         }
+
+        public void MarkSendingOfKey(UpdateInfo updateInfo)
+        {
+            if (updateInfo == null) return;
+
+            lock (_lock)
+            {
+                if (_userDataCache.TryGetValue(updateInfo.UserId, out UserData existingUserData))
+                {
+                    var updatedUserData = new UserData
+                    {
+                        Name = existingUserData.Name,
+                        ChatId = existingUserData.ChatId,
+                        TelegramId = existingUserData.TelegramId,
+                        LastBotMessageId = existingUserData.LastBotMessageId,
+                        Role = existingUserData.Role,
+                        Username = existingUserData.Username,
+                        IsReceivedKey = true
+                    };
+
+                    _userDataCache.TryUpdate(updateInfo.UserId, updatedUserData, existingUserData);
+                }
+            }
+        }
+
+        public bool isReceivedKey(long userId)
+        {
+            lock (_lock)
+            {
+                return !_userDataCache.TryGetValue(userId, out var userData) || !userData.IsReceivedKey;
+            }
+        }
     }
 }

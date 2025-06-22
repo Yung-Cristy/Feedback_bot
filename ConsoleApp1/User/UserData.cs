@@ -1,4 +1,5 @@
 ﻿using ConsoleApp1.User;
+using NPOI.HSSF.Record;
 
 namespace Feedback.User
 {
@@ -11,5 +12,6 @@ namespace Feedback.User
         public UserRole Role { get; set; } = UserRole.User;
 
         public string Username { get; set; }
+        public bool IsReceivedKey { get; set; } = false;
     }
 }
