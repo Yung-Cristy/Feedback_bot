@@ -17,7 +17,7 @@ namespace ConsoleApp1.Page
         public override InlineKeyboardMarkup GetKeyboard(UserRole userRole)
         {
             return new InlineKeyboardMarkup(
-                InlineKeyboardButton.WithCallbackData("↩️ Вернуться в главное меню"));
+                InlineKeyboardButton.WithCallbackData("↩️ Вернуться в главное меню", "Вернуться в главное меню"));
         }
     }
 }

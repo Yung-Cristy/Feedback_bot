@@ -86,7 +86,7 @@ class Program
             {
                 case "Выдать ключ":
                 case "SendKey": 
-                    if (!_userDataManager.isReceivedKey(updateInfo.UserId))
+                    if (!_userDataManager.CheckReceivedKey(updateInfo.UserId))
                     {
                         await _userStateManager.UpdatePageAsync(updateInfo, new SendKeyPage(_keyManager, updateInfo));
                         _userDataManager.MarkSendingOfKey(updateInfo);

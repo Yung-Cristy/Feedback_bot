@@ -115,12 +115,15 @@ namespace ConsoleApp1.User
             }
         }
 
-        public bool isReceivedKey(long userId)
+        public bool CheckReceivedKey(long userId)
         {
             lock (_lock)
             {
-                return !_userDataCache.TryGetValue(userId, out var userData) || !userData.IsReceivedKey;
+                if (!_userDataCache.TryGetValue(userId, out var userData))
+                    return false;
+                else
+                    return userData.IsReceivedKey;
             }
-        }
+        }        
     }
 }

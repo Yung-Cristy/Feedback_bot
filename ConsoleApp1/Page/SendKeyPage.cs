@@ -18,7 +18,7 @@ namespace ConsoleApp1.Pages
         {
             _keyManager = keyManager;
             _updateInfo = updateInfo;
-            _link = InitializeMessageAsync().GetAwaiter().GetResult(); // Осторожно с этим в продакшене!
+            _link = InitializeMessageAsync().GetAwaiter().GetResult(); 
             Text = _link;
         }
 
